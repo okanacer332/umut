@@ -1,0 +1,212 @@
+import useTranslate from '../hooks/useTranslate';
+
+interface VideoPreviewProps {
+  src?: string | null;
+  title: string;
+  variant?: 'inline' | 'icon' | 'card';
+}
+
+const VideoPreview = ({ src, title, variant = 'inline' }: VideoPreviewProps) => {
+  const { language, t } = useTranslate();
+
+  if (!src) {
+    return <span className="video-placeholder">{t('No video', 'لا يوجد فيديو', 'Sin video')}</span>;
+  }
+
+  // Check if the URL is a YouTube link
+  const isYouTube = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i.test(src);
+  const getYouTubeEmbedUrl = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    if (match && match[1]) {
+      return `https://www.youtube.com/embed/${match[1]}`;
+    }
+    return url;
+  };
+
+  // Check if the URL is a Streamable link
+  const isStreamable = /streamable\.com\/([a-z0-9]+)/i.test(src);
+  const getStreamableEmbedUrl = (url: string) => {
+    const match = url.match(/streamable\.com\/([a-z0-9]+)/i);
+    if (match && match[1]) {
+      return `https://streamable.com/e/${match[1]}`;
+    }
+    return url;
+  };
+
+  const isEmbeddable = isYouTube || isStreamable;
+
+  const openInlineModal = () => {
+    const overlay = document.createElement('dialog');
+    overlay.className = 'video-modal';
+
+    const container = document.createElement('div');
+    container.className = 'video-modal__content';
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'video-modal__close';
+    closeButton.innerText = '×';
+    closeButton.setAttribute('aria-label', 'Close video');
+
+    const closeOverlay = () => {
+      overlay.close();
+      overlay.remove();
+    };
+
+    closeButton.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closeOverlay();
+      }
+    });
+    overlay.addEventListener('cancel', closeOverlay);
+
+    if (isEmbeddable) {
+      // Use iframe for YouTube or Streamable
+      const iframe = document.createElement('iframe');
+      iframe.src = isYouTube ? getYouTubeEmbedUrl(src) : getStreamableEmbedUrl(src);
+      iframe.title = title;
+      iframe.allowFullscreen = true;
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+      iframe.className = 'video-modal__player';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      container.appendChild(closeButton);
+      container.appendChild(iframe);
+    } else {
+      // Use video element for direct video URLs
+      const video = document.createElement('video');
+      video.src = src;
+      video.title = title;
+      video.controls = true;
+      video.autoplay = true;
+      video.className = 'video-modal__player';
+      const pauseVideo = () => {
+        video.pause();
+        closeOverlay();
+      };
+      closeButton.addEventListener('click', pauseVideo);
+      container.appendChild(closeButton);
+      container.appendChild(video);
+    }
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+    overlay.showModal();
+  };
+
+  if (variant === 'icon') {
+    return (
+      <button
+        type="button"
+        className="video-button video-button--icon"
+        onClick={openInlineModal}
+        aria-label={language === 'ar'
+          ? `تشغيل فيديو ${title}`
+          : language === 'es'
+            ? `Reproducir video de ${title}`
+            : `Play ${title} video`}
+      >
+        <svg
+          className="video-button__icon"
+          viewBox="0 0 24 24"
+          role="presentation"
+          focusable="false"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 5.5v13l10-6.5-10-6.5z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+    );
+  }
+
+  if (variant === 'card') {
+    if (!src) {
+      return (
+        <div className="video-card-placeholder">
+          {t('No video', 'لا يوجد فيديو', 'Sin video')}
+        </div>
+      );
+    }
+
+    // Get thumbnail URL for YouTube
+    const getYouTubeThumbnail = (url: string) => {
+      const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+      if (match && match[1]) {
+        return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+      }
+      return null;
+    };
+
+    // Get thumbnail URL for Streamable
+    const getStreamableThumbnail = (url: string) => {
+      const match = url.match(/streamable\.com\/([a-z0-9]+)/i);
+      if (match && match[1]) {
+        return `https://cdn-cf-east.streamable.com/image/${match[1]}.jpg`;
+      }
+      return null;
+    };
+
+    const thumbnailUrl = isYouTube 
+      ? getYouTubeThumbnail(src)
+      : isStreamable
+        ? getStreamableThumbnail(src)
+        : null;
+
+    return (
+      <div className="video-card-preview" onClick={openInlineModal}>
+        {thumbnailUrl ? (
+          <div className="video-card-thumbnail">
+            <img src={thumbnailUrl} alt={title} />
+            <div className="video-card-play-button">
+              <span>▶</span>
+            </div>
+          </div>
+        ) : (
+          <div className="video-card-thumbnail video-card-thumbnail--video">
+            <video preload="metadata" muted>
+              <source src={src} />
+            </video>
+            <div className="video-card-play-button">
+              <span>▶</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isEmbeddable) {
+    return (
+      <div className="video-preview">
+        <iframe
+          src={isYouTube ? getYouTubeEmbedUrl(src) : getStreamableEmbedUrl(src)}
+          title={title}
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          className="video-player"
+          style={{ width: '100%', aspectRatio: '16/9', border: 'none' }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="video-preview">
+      <video className="video-player" controls preload="metadata">
+        <source src={src} title={title} />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  );
+};
+
+export default VideoPreview;
+
+
+
+
