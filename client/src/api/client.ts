@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? 
-  (import.meta.env.PROD ? 'https://cillii.onrender.com' : 'http://192.168.1.204:3000');
+  (import.meta.env.PROD ? 'https://cillii.onrender.com' : 'http://localhost:4000');
 
 const apiClient = axios.create({
   baseURL,

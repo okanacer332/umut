@@ -1,14 +1,25 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchClasses } from '../api/classes';
-import type { ClassFilters } from '../types';
+import { useCallback } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
-export const CLASSES_QUERY_KEY = 'classes';
+const useTranslate = () => {
+  const { language, setLanguage, toggleLanguage } = useLanguage();
 
-export const useClasses = (filters?: ClassFilters) =>
-  useQuery({
-    queryKey: [CLASSES_QUERY_KEY, filters ?? 'all'],
-    queryFn: () => fetchClasses(filters ?? {}),
-    initialData: [],
-  });
+  const t = useCallback((en: string, ar: string, es?: string) => {
+    if (language === 'ar') {
+      return ar;
+    }
+    if (language === 'es' && es) {
+      return es;
+    }
+    return en;
+  }, [language]);
 
+  return {
+    language,
+    setLanguage,
+    toggleLanguage,
+    t,
+  };
+};
 
+export default useTranslate;
